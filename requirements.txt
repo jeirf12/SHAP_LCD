@@ -1,7 +1,7 @@
-scikit-learn 
-requests 
-plotly 
-opencv-python 
-colorama 
-shap 
-seaborn
+scikit-learn==1.7.0
+requests==2.32.4
+plotly==6.0.1
+opencv-python==4.13.0.92
+colorama==0.4.6
+shap==0.48.0
+seaborn==0.13.2
