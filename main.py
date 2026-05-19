@@ -1,6 +1,6 @@
 from functools import partial
 from SHAPE_Explainer import SHAPExplainer
-from sklearn.svm import SVC, LinearSVC
+from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import LogisticRegression
