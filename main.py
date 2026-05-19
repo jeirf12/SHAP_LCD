@@ -1,6 +1,6 @@
 from functools import partial
 from SHAPE_Explainer import SHAPExplainer
-from sklearn.svm import SVC
+from sklearn.svm import SVC, LinearSVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import LogisticRegression
@@ -22,7 +22,7 @@ listDatasets = list(datasets_registry.keys())
 
 listAlgorithms = {
     'svc': partial(SVC, probability=True),
-    'randomforest': RandomForestClassifier,
+    'randomforest': partial(RandomForestClassifier, n_estimators=800, max_depth=30, min_samples_split=5, min_samples_leaf=5, max_features=0.5, class_weight=None, n_jobs=1, random_state=42),
     'mlp': partial(MLPClassifier, max_iter=1000, random_state=42),
     'logistic': LogisticRegression,
 }
