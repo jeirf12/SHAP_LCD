@@ -4,6 +4,7 @@ from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import LogisticRegression
+from imblearn.ensemble import BalancedRandomForestClassifier
 import numpy as np
 import sys
 import json
@@ -22,9 +23,9 @@ listDatasets = list(datasets_registry.keys())
 
 listAlgorithms = {
     'svc': partial(SVC, probability=True),
-    'randomforest': partial(RandomForestClassifier, n_estimators=800, max_depth=30, min_samples_split=5, min_samples_leaf=5, max_features=0.5, class_weight=None, n_jobs=1, random_state=42),
-    'mlp': partial(MLPClassifier, max_iter=1000, random_state=42),
-    'logistic': LogisticRegression,
+    'randomforest': partial(RandomForestClassifier, n_estimators=800, max_depth=30, min_samples_split=5, min_samples_leaf=1, max_features=0.5, class_weight='balanced_subsample', n_jobs=-1, random_state=42),
+    'mlp': partial(MLPClassifier, max_iter=1000, early_stopping=True, n_iter_no_change=10, random_state=42),
+    'logistic': partial(LogisticRegression, solver="liblinear", max_iter=200),
 }
 
 dataset_index = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() and int(sys.argv[1]) < len(listDatasets) else 1

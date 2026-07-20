@@ -21,7 +21,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import balanced_accuracy_score, roc_auc_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, roc_auc_score, f1_score
 import os
 
 IMBALANCE_RATIO_THRESHOLD = 1.5
@@ -112,24 +112,32 @@ class SHAPExplainer:
                 modelo = self.model_class()
             modelo.fit(X_fold_train, y_fold_train)
             self.modelos_guardados.append(modelo)
-            result = None
-            if self.isBalanced:
-                accuracy = modelo.score(X_fold_val, y_fold_val)
-                result = { 'Pliegue': f'Pliegue {fold}', 'Accuracy': accuracy }
-            else:
-                y_pred = modelo.predict(X_fold_val)
-                y_probs = modelo.predict_proba(X_fold_val)
-                balance_accuracy = balanced_accuracy_score(y_fold_val, y_pred)
-
-                roc_auc = roc_auc_score(y_fold_val, y_probs[:, 1]) if y_probs.shape[1] == 2 else roc_auc_score(y_fold_val, y_probs, multi_class='ovr', labels=modelo.classes_)
-                result = { 'Pliegue': f'Pliegue {fold}', 'Balanced Accuracy': balance_accuracy, 'ROC AUC': roc_auc }
-            
+            y_pred = modelo.predict(X_fold_val)
+            y_probs = modelo.predict_proba(X_fold_val)
+            acc = accuracy_score(y_fold_val, y_pred)
+            bal_acc = balanced_accuracy_score(y_fold_val, y_pred)
+            auc = roc_auc_score(y_fold_val, y_probs[:, 1]) if y_probs.shape[1] == 2 else roc_auc_score(y_fold_val, y_probs, multi_class='ovr', labels=modelo.classes_)
+            f1 = f1_score(y_fold_val, y_pred, average='weighted')
+            result = {
+                'Pliegue': f'Pliegue {fold}',
+                'Accuracy': acc,
+                'Balanced Accuracy': bal_acc,
+                'AUC': auc,
+                'F1-Score': f1,
+            }
             self.resultados.append(result)
 
-        print("\nResultados de Validación Cruzada:")
-        df = pd.DataFrame(self.resultados)
-        df.index = df.index + 1
-        print(df)
+        df_res = pd.DataFrame(self.resultados)
+        print("\nResultados de Validación Cruzada (por pliegue):")
+        print(df_res.to_string(index=False))
+
+        resumen = df_res[["Accuracy", "Balanced Accuracy", "AUC", "F1-Score"]].agg(["mean", "std"]).T
+        resumen["mean±std"] = (
+            resumen["mean"].map(lambda x: f"{x:.7f}") + " ± " + resumen["std"].map(lambda x: f"{x:.7f}")
+        )
+
+        print("\nResumen (media ± desviación estándar):")
+        print(resumen[["mean±std"]].to_string())
 
         try:
             self.modelo_entrenado_70 = self.model_class(random_state=self.random_state)
@@ -138,6 +146,30 @@ class SHAPExplainer:
         self.modelo_entrenado_70.fit(self.X_train, self.y_train)
         self._init_explainer()
         print("\nModelo final entrenado sobre el 70% de los datos.")
+
+        metricas_conjuntos = []
+        for nombre, X_eval, y_eval in [("Entrenamiento (Train)", self.X_train, self.y_train),
+                                        ("Prueba (Test)",         self.X_test,  self.y_test)]:
+            y_pred_eval  = self.modelo_entrenado_70.predict(X_eval)
+            y_probs_eval = self.modelo_entrenado_70.predict_proba(X_eval)
+            acc_eval     = accuracy_score(y_eval, y_pred_eval)
+            bal_acc_eval = balanced_accuracy_score(y_eval, y_pred_eval)
+            auc_eval     = (roc_auc_score(y_eval, y_probs_eval[:, 1])
+                            if y_probs_eval.shape[1] == 2
+                            else roc_auc_score(y_eval, y_probs_eval, multi_class='ovr',
+                                               labels=self.modelo_entrenado_70.classes_))
+            f1_eval      = f1_score(y_eval, y_pred_eval, average='weighted')
+            metricas_conjuntos.append({
+                'Conjunto':           nombre,
+                'Accuracy':           round(acc_eval,     7),
+                'Balanced Accuracy':  round(bal_acc_eval, 7),
+                'AUC':                round(auc_eval,     7),
+                'F1-Score':           round(f1_eval,      7),
+            })
+
+        df_metricas = pd.DataFrame(metricas_conjuntos).set_index('Conjunto')
+        print("\nMétricas del modelo final — Entrenamiento vs Prueba:")
+        print(df_metricas.to_string())
 
     def calculate_shap_values(self):
         if not self.exist_database_path:
